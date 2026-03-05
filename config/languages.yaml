@@ -1,0 +1,123 @@
+languages:
+  # High resource
+  - code: "en"
+    name: "English"
+    resource_tier: "high"
+    script: "latin"
+    deep_translator_code: "en"
+
+  - code: "fr"
+    name: "French"
+    resource_tier: "high"
+    script: "latin"
+    deep_translator_code: "fr"
+
+  - code: "es"
+    name: "Spanish"
+    resource_tier: "high"
+    script: "latin"
+    deep_translator_code: "es"
+
+  - code: "de"
+    name: "German"
+    resource_tier: "high"
+    script: "latin"
+    deep_translator_code: "de"
+
+  - code: "zh"
+    name: "Chinese"
+    resource_tier: "high"
+    script: "cjk"
+    deep_translator_code: "zh-CN"
+
+  - code: "ja"
+    name: "Japanese"
+    resource_tier: "high"
+    script: "cjk"
+    deep_translator_code: "ja"
+
+  - code: "ko"
+    name: "Korean"
+    resource_tier: "high"
+    script: "hangul"
+    deep_translator_code: "ko"
+
+  - code: "ar"
+    name: "Arabic"
+    resource_tier: "high"
+    script: "arabic"
+    deep_translator_code: "ar"
+
+  - code: "ru"
+    name: "Russian"
+    resource_tier: "high"
+    script: "cyrillic"
+    deep_translator_code: "ru"
+
+  - code: "pt"
+    name: "Portuguese"
+    resource_tier: "high"
+    script: "latin"
+    deep_translator_code: "pt"
+
+  - code: "it"
+    name: "Italian"
+    resource_tier: "high"
+    script: "latin"
+    deep_translator_code: "it"
+
+  - code: "nl"
+    name: "Dutch"
+    resource_tier: "high"
+    script: "latin"
+    deep_translator_code: "nl"
+
+  # Medium resource
+  - code: "hi"
+    name: "Hindi"
+    resource_tier: "medium"
+    script: "devanagari"
+    deep_translator_code: "hi"
+
+  - code: "id"
+    name: "Indonesian"
+    resource_tier: "medium"
+    script: "latin"
+    deep_translator_code: "id"
+
+  - code: "tr"
+    name: "Turkish"
+    resource_tier: "medium"
+    script: "latin"
+    deep_translator_code: "tr"
+
+  - code: "pl"
+    name: "Polish"
+    resource_tier: "medium"
+    script: "latin"
+    deep_translator_code: "pl"
+
+  - code: "vi"
+    name: "Vietnamese"
+    resource_tier: "medium"
+    script: "latin"
+    deep_translator_code: "vi"
+
+  - code: "bn"
+    name: "Bengali"
+    resource_tier: "medium"
+    script: "bengali"
+    deep_translator_code: "bn"
+
+  - code: "th"
+    name: "Thai"
+    resource_tier: "medium"
+    script: "thai"
+    deep_translator_code: "th"
+
+  # Low resource
+  - code: "sw"
+    name: "Swahili"
+    resource_tier: "low"
+    script: "latin"
+    deep_translator_code: "sw"

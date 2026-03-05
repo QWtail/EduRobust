@@ -1,0 +1,36 @@
+# HuggingFace (still used for HF-hosted models)
+huggingface-hub>=0.25.0
+
+# Ollama local inference
+ollama>=0.3.0
+
+# Translation
+deep-translator>=1.11.4
+
+# Retry and backoff
+tenacity>=8.2.3
+
+# Configuration
+pyyaml>=6.0.1
+pydantic>=2.8.0
+python-dotenv>=1.0.0
+
+# Data processing
+pandas>=2.2.0
+numpy>=1.26.0
+
+# Statistics
+scipy>=1.13.0
+
+# Visualization
+matplotlib>=3.9.0
+seaborn>=0.13.2
+
+# Language detection (for english_only behavior)
+langdetect>=1.0.9
+
+# Progress display
+tqdm>=4.66.0
+
+# Terminal output
+rich>=13.7.0

@@ -1,0 +1,18 @@
+models:
+  - id: "llama3.1:8b-instruct-q4_0"
+    name: "llama31_8b"
+    provider: ollama
+    enabled: true
+    max_new_tokens: 512
+
+  - id: "qwen2.5:7b"
+    name: "qwen25_7b"
+    provider: ollama
+    enabled: false   # not installed — run: ollama pull qwen2.5:7b
+    max_new_tokens: 512
+
+  - id: "mistral:7b"
+    name: "mistral_7b"
+    provider: ollama
+    enabled: true
+    max_new_tokens: 512

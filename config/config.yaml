@@ -1,0 +1,31 @@
+experiment:
+  runs_per_cell: 20
+  temperature: 0.7
+  max_new_tokens: 512
+  seed: 42
+  checkpoint_every: 50
+
+api:
+  provider: ollama
+  ollama_host: "http://localhost:11434"
+  max_consecutive_errors: 10
+  max_retries: 5
+  base_backoff_seconds: 2.0
+  timeout_seconds: 120
+  rate_limit_pause_seconds: 30
+  model_loading_wait_seconds: 30
+
+evaluation:
+  judge_model: "llama3.1:8b-instruct-q4_0"
+  judge_provider: "ollama"
+  judge_temperature: 0.0
+  judge_max_tokens: 256
+  confidence_threshold: 0.7
+  use_keyword_fallback: true
+  essay_min_words: 100        # for no_essay behavior bypass detection
+
+output:
+  results_dir: "results/raw"
+  analysis_dir: "results/analysis"
+  log_dir: "logs"
+  log_level: "INFO"

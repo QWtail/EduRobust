@@ -1,0 +1,34 @@
+# Environment / secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Results and logs (potentially large / private)
+results/raw/
+results/analysis/
+logs/
+
+# Translations cache (auto-generated)
+prompts/translations/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Claude Code local settings
+.claude/
