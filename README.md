@@ -37,7 +37,7 @@ ollama serve
 # Pull the models
 ollama pull llama3.1:8b-instruct-q4_0
 ollama pull mistral:7b
-ollama pull qwen2.5:7b   # optional
+ollama pull qwen2.5:7b
 ```
 
 **3. (Optional) HuggingFace models**
