@@ -18,6 +18,9 @@ results/raw/
 results/analysis/
 logs/
 
+# Research plan
+Context.docx
+
 # Translations cache (auto-generated)
 prompts/translations/
 
