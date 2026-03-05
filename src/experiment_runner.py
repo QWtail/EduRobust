@@ -34,6 +34,7 @@ def _build_client(model_id: str, provider: str, config: EduRobustConfig):
         return OllamaClient(
             model_id=model_id,
             host=config.master.api.ollama_host,
+            timeout=config.master.api.timeout_seconds,
         )
     else:
         api_cfg = config.master.api
@@ -182,7 +183,6 @@ class ExperimentRunner:
                                     run_key = (model_cfg.name, behavior_cfg.id,
                                                lang_cfg.code, run_idx)
                                     if run_key in completed:
-                                        pbar.update(1)
                                         continue
 
                                     status = self._execute_single_run(

@@ -20,9 +20,10 @@ class OllamaClient:
     Requires Ollama to be running locally: `ollama serve`
     """
 
-    def __init__(self, model_id: str, host: str = "http://localhost:11434"):
+    def __init__(self, model_id: str, host: str = "http://localhost:11434", timeout: int = 120):
         self._model_id = model_id
-        self._client = _ollama.Client(host=host)
+        self._timeout = timeout
+        self._client = _ollama.Client(host=host, timeout=timeout)
 
     def chat(
         self,

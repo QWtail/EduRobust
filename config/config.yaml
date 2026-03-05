@@ -16,11 +16,11 @@ api:
   model_loading_wait_seconds: 30
 
 evaluation:
-  judge_model: "llama3.1:8b-instruct-q4_0"
+  judge_model: "llama3.2:3b-instruct-q4_0"
   judge_provider: "ollama"
   judge_temperature: 0.0
   judge_max_tokens: 256
-  confidence_threshold: 0.7
+  confidence_threshold: 0.7   # set to 1.1 to effectively disables LLM judge, always uses keyword fallback
   use_keyword_fallback: true
   essay_min_words: 100        # for no_essay behavior bypass detection
 

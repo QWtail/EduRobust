@@ -88,6 +88,15 @@ class TranslationCache:
         except Exception as e:
             logger.warning(f"Failed to load translation file {path}: {e}")
 
+    # Marker that survives Google Translate without being translated
+    _PLACEHOLDER_MARKER = "EDUROBUST99PROBLEM99"
+
+    def _protect_placeholders(self, text: str) -> str:
+        return text.replace("{problem}", self._PLACEHOLDER_MARKER)
+
+    def _restore_placeholders(self, text: str) -> str:
+        return text.replace(self._PLACEHOLDER_MARKER, "{problem}")
+
     def _translate_and_cache(
         self, text: str, lang_code: str, behavior_id: str
     ) -> str:
@@ -95,13 +104,15 @@ class TranslationCache:
         try:
             from deep_translator import GoogleTranslator
             time.sleep(_TRANSLATE_DELAY)
-            translated = GoogleTranslator(source="en", target=lang_code).translate(text)
+            protected = self._protect_placeholders(text)
+            translated = GoogleTranslator(source="en", target=lang_code).translate(protected)
             if not translated:
                 logger.warning(
                     f"Empty translation returned for lang={lang_code}. "
                     f"Using English."
                 )
                 return text
+            translated = self._restore_placeholders(translated)
 
             # Cache in memory
             self._cache[(text, lang_code)] = translated
