@@ -176,6 +176,9 @@ class ExperimentRunner:
                         print(f"  {m.name} | {b.id} | {l.code} | {runs_per_cell} runs")
             return
 
+        # Pre-translate all attack prompts before starting the experiment
+        self._pretranslate_all(behaviors, languages)
+
         completed = self._store.get_completed_keys() if resume else set()
         logger.info(f"Resuming from {len(completed)} completed cells.")
 
@@ -237,6 +240,53 @@ class ExperimentRunner:
             pbar.close()
             if self._interrupted:
                 logger.info("Experiment interrupted by user. Progress saved to CSV.")
+
+    # -----------------------------------------------------------------------
+    # Pre-translation
+    # -----------------------------------------------------------------------
+
+    def _pretranslate_all(
+        self,
+        behaviors: list,
+        languages: list,
+    ) -> None:
+        """
+        Translate all attack templates for the given behaviors and languages
+        before the experiment starts. Already-cached translations are skipped instantly.
+        Shows a tqdm progress bar.
+        """
+        # Build the full list of (behavior_id, lang_code, deep_translator_code, template) work items
+        work = []
+        for behavior in behaviors:
+            templates = self._attack_templates.get(behavior.id, [])
+            for lang in languages:
+                if lang.code == "en":
+                    continue  # English is identity — no translation needed
+                for template in templates:
+                    work.append((behavior.id, lang.code, lang.deep_translator_code, template))
+
+        if not work:
+            return
+
+        print(f"\nPre-translating {len(work)} prompts across "
+              f"{len(behaviors)} behaviors × {len(languages)} languages ...")
+
+        skipped = 0
+        with logging_redirect_tqdm():
+            with tqdm(work, desc="Translating", unit="prompt") as pbar:
+                for behavior_id, lang_code, deep_code, template in pbar:
+                    pbar.set_postfix(lang=lang_code, behavior=behavior_id)
+                    cache_key = (template, lang_code)
+                    if cache_key in self._translator._cache:
+                        skipped += 1
+                    else:
+                        self._translator.get(template, deep_code, behavior_id)
+
+        cached_count = len(work) - skipped
+        print(f"Translation complete: {cached_count} translated, {skipped} already cached.\n")
+        logger.info(
+            f"Pre-translation done: {cached_count} new, {skipped} from cache, {len(work)} total."
+        )
 
     # -----------------------------------------------------------------------
     # Single run
