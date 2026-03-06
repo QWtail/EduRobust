@@ -73,6 +73,18 @@ def main():
         help="Limit to specific language codes (e.g. en fr zh)"
     )
     parser.add_argument(
+        "--provider",
+        choices=["ollama", "huggingface_local", "huggingface"],
+        default=None,
+        help=(
+            "Override the provider for all models at runtime. "
+            "If not set, uses the provider defined per model in models.yaml. "
+            "ollama: local Ollama daemon (needs `ollama pull`). "
+            "huggingface_local: download and run weights via transformers (no rate limits). "
+            "huggingface: remote HF Inference API (rate-limited, needs HF_TOKEN)."
+        ),
+    )
+    parser.add_argument(
         "--config-dir", type=Path, default=None,
         help="Path to config/ directory (default: auto-detect)"
     )
@@ -83,10 +95,18 @@ def main():
     setup_logging(cfg.log_dir, cfg.master.output.log_level)
     logger = logging.getLogger(__name__)
 
+    # Resolve effective provider per model (CLI flag overrides yaml)
+    effective_providers = {
+        m.name: (args.provider or m.provider)
+        for m in cfg.enabled_models
+    }
+
     banner = "\n".join([
         "=" * 60,
         "EduRobust Experiment Starting",
         f"  Models:    {[m.name for m in cfg.enabled_models]}",
+        f"  Provider:  {args.provider or '(per model in models.yaml)'}",
+        f"  Effective: {effective_providers}",
         f"  Behaviors: {[b.id for b in cfg.behaviors]}",
         f"  Languages: {[l.code for l in cfg.languages]}",
         f"  Runs/cell: {cfg.master.experiment.runs_per_cell}",
@@ -97,7 +117,7 @@ def main():
     print(banner)
     logger.info(banner)
 
-    runner = ExperimentRunner(cfg)
+    runner = ExperimentRunner(cfg, provider_override=args.provider)
     runner.run_all(
         resume=args.resume,
         models_filter=args.models,

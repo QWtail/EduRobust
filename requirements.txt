@@ -1,5 +1,11 @@
-# HuggingFace (still used for HF-hosted models)
+# HuggingFace — remote Inference API
 huggingface-hub>=0.25.0
+
+# HuggingFace local inference (provider: huggingface_local)
+# torch: install the version matching your CUDA from https://pytorch.org/get-started/locally/
+transformers>=4.43.0
+accelerate>=0.33.0
+# bitsandbytes>=0.43.0   # optional: needed only for load_in_8bit / load_in_4bit
 
 # Ollama local inference
 ollama>=0.3.0

@@ -27,8 +27,15 @@ from .translator import TranslationCache
 logger = logging.getLogger(__name__)
 
 
-def _build_client(model_id: str, provider: str, config: EduRobustConfig):
-    """Factory: returns the right client based on provider."""
+def _build_client(model_id: str, provider: str, config: EduRobustConfig, model_cfg=None):
+    """
+    Factory: returns the right client based on provider.
+
+    provider options:
+      "ollama"             — model served by local Ollama daemon (ollama pull <id> first)
+      "huggingface_local"  — model downloaded and run directly via transformers (no rate limits)
+      "huggingface"        — model called via HF Inference API (subject to rate limits)
+    """
     if provider == "ollama":
         from .ollama_client import OllamaClient
         return OllamaClient(
@@ -36,7 +43,20 @@ def _build_client(model_id: str, provider: str, config: EduRobustConfig):
             host=config.master.api.ollama_host,
             timeout=config.master.api.timeout_seconds,
         )
+    elif provider == "huggingface_local":
+        from .hf_local_client import HFLocalClient
+        kwargs = {}
+        if model_cfg is not None:
+            kwargs["torch_dtype"] = model_cfg.torch_dtype
+            kwargs["load_in_8bit"] = model_cfg.load_in_8bit
+            kwargs["load_in_4bit"] = model_cfg.load_in_4bit
+        return HFLocalClient(
+            model_id=model_id,
+            hf_token=config.hf_token or None,
+            **kwargs,
+        )
     else:
+        # "huggingface" — remote Inference API
         api_cfg = config.master.api
         return RobustHFClient(
             token=config.hf_token,
@@ -61,8 +81,9 @@ class ExperimentRunner:
         runner.run_all(resume=True)
     """
 
-    def __init__(self, config: EduRobustConfig):
+    def __init__(self, config: EduRobustConfig, provider_override: Optional[str] = None):
         self._cfg = config
+        self._provider_override = provider_override
         self._prompt_builder = PromptBuilder()
 
         # Load attack templates
@@ -78,16 +99,23 @@ class ExperimentRunner:
         results_csv = config.results_dir / "runs.csv"
         self._store = ResultStore(results_csv)
 
-        # Clients for each target model (provider-aware)
+        # Clients for each target model (provider-aware; CLI --provider overrides yaml)
         self._clients: dict[str, object] = {
-            m.id: _build_client(m.id, m.provider, config)
+            m.id: _build_client(
+                m.id,
+                provider_override or m.provider,
+                config,
+                model_cfg=m,
+            )
             for m in config.enabled_models
         }
 
-        # Judge client (shared across all evaluations)
+        # Judge client — provider_override also applies to the judge
         eval_cfg = config.master.evaluation
         judge_client = _build_client(
-            eval_cfg.judge_model, eval_cfg.judge_provider, config
+            eval_cfg.judge_model,
+            provider_override or eval_cfg.judge_provider,
+            config,
         )
 
         self._evaluator = Evaluator(

@@ -1,18 +1,63 @@
+# ---------------------------------------------------------------------------
+# Provider guide — choose one per model:
+#
+#   provider: ollama
+#     - Model runs locally via the Ollama daemon
+#     - Setup: install Ollama, then `ollama pull <id>`
+#     - No API key needed, no rate limits
+#     - Best for: quick setup on a laptop/desktop
+#
+#   provider: huggingface_local
+#     - Model weights downloaded and run directly via the transformers library
+#     - First run downloads weights to ~/.cache/huggingface/hub (several GB)
+#     - No API key needed for public models; gated models need `huggingface-cli login`
+#     - No rate limits (fully offline after first download)
+#     - Supports torch_dtype, load_in_8bit, load_in_4bit for memory control
+#     - Best for: GPU servers, research clusters, avoiding Ollama dependency
+#
+#   provider: huggingface
+#     - Model is called via the HuggingFace Inference API (remote)
+#     - Requires HF_TOKEN in .env
+#     - Subject to rate limits on the free tier
+#     - Best for: trying a model without downloading it locally
+# ---------------------------------------------------------------------------
+
 models:
+  # --- Ollama (local daemon) ---
   - id: "llama3.1:8b-instruct-q4_0"
     name: "llama31_8b"
-    provider: ollama
+    provider: ollama          # run: ollama pull llama3.1:8b-instruct-q4_0
     enabled: true
     max_new_tokens: 512
 
   - id: "qwen2.5:7b"
     name: "qwen25_7b"
-    provider: ollama
-    enabled: false   # not installed — run: ollama pull qwen2.5:7b
+    provider: ollama          # run: ollama pull qwen2.5:7b
+    enabled: true
     max_new_tokens: 512
 
   - id: "mistral:7b"
     name: "mistral_7b"
-    provider: ollama
+    provider: ollama          # run: ollama pull mistral:7b
     enabled: true
     max_new_tokens: 512
+
+  # --- HuggingFace local (transformers, no rate limits) ---
+  # Uncomment and set enabled: true to use instead of / alongside Ollama models.
+  # pip install transformers torch accelerate   (+ bitsandbytes for 8/4-bit)
+  #
+  # - id: "meta-llama/Llama-3.1-8B-Instruct"
+  #   name: "llama31_8b_hf"
+  #   provider: huggingface_local
+  #   enabled: false
+  #   max_new_tokens: 512
+  #   torch_dtype: "float16"    # "auto" | "float16" | "bfloat16" | "float32"
+  #   load_in_8bit: false       # set true to halve VRAM (needs bitsandbytes)
+  #   load_in_4bit: false       # set true to quarter VRAM (needs bitsandbytes)
+  #
+  # - id: "mistralai/Mistral-7B-Instruct-v0.3"
+  #   name: "mistral_7b_hf"
+  #   provider: huggingface_local
+  #   enabled: false
+  #   max_new_tokens: 512
+  #   torch_dtype: "float16"

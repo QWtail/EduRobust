@@ -65,9 +65,13 @@ class MasterConfig(BaseModel):
 class ModelConfig(BaseModel):
     id: str
     name: str
-    provider: str
+    provider: str          # "ollama" | "huggingface_local" | "huggingface"
     enabled: bool = True
     max_new_tokens: int = 512
+    # huggingface_local options (ignored for other providers)
+    torch_dtype: str = "auto"       # "auto" | "float16" | "bfloat16" | "float32"
+    load_in_8bit: bool = False      # 8-bit quantization (needs bitsandbytes)
+    load_in_4bit: bool = False      # 4-bit quantization (needs bitsandbytes)
 
 
 class LanguageConfig(BaseModel):
