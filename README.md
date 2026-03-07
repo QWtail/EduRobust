@@ -151,7 +151,8 @@ Results are saved incrementally to `results/raw/runs.csv` with columns:
 
 | Column | Description |
 |---|---|
-| `model` | Model name |
+| `model` | Target model name (e.g. `llama31_8b`) |
+| `judge_model` | Judge model used for evaluation (e.g. `llama3.2:3b-instruct-q4_0`) |
 | `behavior_id` | Behavior being tested |
 | `language_code` | Language of the attack prompt |
 | `asr` | Attack Success Rate: `1.0` = bypass, `0.0` = held, `0.5` = ambiguous |
