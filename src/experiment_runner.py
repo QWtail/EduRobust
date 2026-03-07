@@ -276,7 +276,7 @@ class ExperimentRunner:
             with tqdm(work, desc="Translating", unit="prompt") as pbar:
                 for behavior_id, lang_code, deep_code, template in pbar:
                     pbar.set_postfix(lang=lang_code, behavior=behavior_id)
-                    cache_key = (template, lang_code)
+                    cache_key = (template, deep_code)
                     if cache_key in self._translator._cache:
                         skipped += 1
                     else:
@@ -347,6 +347,27 @@ class ExperimentRunner:
             status = f"unexpected_error"
             logger.error(f"Unexpected error: {e}", exc_info=True)
 
+        # If interrupted after model call, skip the judge call (saves ~5-30s)
+        if self._interrupted and status == "success":
+            self._store.append(RunRecord(
+                timestamp=RunRecord.now(),
+                model=model_cfg.name,
+                behavior_id=behavior_cfg.id,
+                language_code=lang_cfg.code,
+                language_name=lang_cfg.name,
+                resource_tier=lang_cfg.resource_tier,
+                run_index=run_idx,
+                attack_template=template_en,
+                translated_prompt=user_msg,
+                model_response=response,
+                asr=float("nan"),
+                eval_method="interrupted",
+                eval_confidence=0.0,
+                eval_reason="Run interrupted before evaluation",
+                status="interrupted",
+            ))
+            return "interrupted"
+
         # Evaluate
         if status == "success" and response:
             eval_result = self._evaluator.evaluate(
@@ -403,6 +424,18 @@ class ExperimentRunner:
         return data.get("attack_prompts", {})
 
     def _handle_interrupt(self, signum, frame) -> None:
-        """Graceful shutdown on Ctrl+C."""
-        logger.info("Interrupt signal received. Will stop after current run...")
-        self._interrupted = True
+        """
+        Ctrl+C handler with two-stage shutdown:
+          1st Ctrl+C — set flag, finish current HTTP call, then stop.
+          2nd Ctrl+C — force-exit immediately (exit code 130).
+        """
+        if not self._interrupted:
+            self._interrupted = True
+            logger.info("Interrupt received. Finishing current model call, then stopping.")
+            print(
+                "\n[EduRobust] Stopping after current model call finishes. "
+                "Press Ctrl+C again to force quit immediately."
+            )
+        else:
+            print("\n[EduRobust] Force quit.")
+            sys.exit(130)  # 130 = 128 + SIGINT(2), standard Ctrl+C exit code

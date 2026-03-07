@@ -94,20 +94,44 @@ class ResultStore:
                 writer = csv.DictWriter(f, fieldnames=CSV_COLUMNS)
                 writer.writerow(row)
 
+    # Minimum number of characters a model_response must have to be considered valid.
+    # Responses shorter than this are treated as invalid and will be regenerated on resume.
+    MIN_RESPONSE_CHARS: int = 20
+
     def get_completed_keys(self) -> set[tuple[str, str, str, int]]:
         """
         Return set of (model, behavior_id, language_code, run_index) tuples
-        that already have status='success' in the CSV.
-        Used to skip already-done cells when resuming.
+        that have a valid completed run in the CSV.
+
+        A run is considered valid (and therefore skipped on resume) only when ALL of:
+          1. status == 'success'
+          2. model_response is non-empty and has >= MIN_RESPONSE_CHARS characters
+          3. asr is not NaN (evaluation was not skipped)
+
+        Any run that fails these checks is excluded from the completed set,
+        causing it to be regenerated on the next --resume run.
         """
         if not self._path.exists():
             return set()
 
         try:
-            df = pd.read_csv(self._path, usecols=["model", "behavior_id",
-                                                    "language_code", "run_index",
-                                                    "status"])
-            completed = df[df["status"] == "success"]
+            df = pd.read_csv(
+                self._path,
+                usecols=["model", "behavior_id", "language_code",
+                          "run_index", "status", "model_response", "asr"],
+            )
+
+            # Filter 1: successful API call
+            mask = df["status"] == "success"
+
+            # Filter 2: non-empty response with sufficient length
+            responses = df["model_response"].fillna("").astype(str)
+            mask &= responses.str.strip().str.len() >= self.MIN_RESPONSE_CHARS
+
+            # Filter 3: ASR was actually computed (not NaN / skipped)
+            mask &= df["asr"].notna()
+
+            completed = df[mask]
             return set(
                 zip(
                     completed["model"],
