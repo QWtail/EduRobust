@@ -14,9 +14,9 @@ venv/
 env/
 
 # Results and logs (potentially large / private)
-results/raw/
-results/analysis/
-logs/
+# results/raw/
+# results/analysis/
+# logs/
 
 # Research plan
 Context.docx
