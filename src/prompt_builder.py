@@ -9,7 +9,7 @@ from __future__ import annotations
 import random
 
 # Sample problems used to fill {problem} placeholders.
-# Round-robin by run_index ensures variety across 20 runs per cell.
+# Round-robin by run_index ensures variety across runs per cell.
 SAMPLE_PROBLEMS: dict[str, list[str]] = {
     "no_homework": [
         "Solve: 2x^2 + 5x - 3 = 0",
