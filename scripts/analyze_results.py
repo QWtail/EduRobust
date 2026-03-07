@@ -36,7 +36,15 @@ def main():
     )
     parser.add_argument(
         "--model", type=str, default=None,
-        help="Generate outputs for a specific model only (in addition to all-model views)"
+        help="Also generate a per-model heatmap for this target model"
+    )
+    parser.add_argument(
+        "--judge", type=str, default=None,
+        help=(
+            "Filter analysis to rows evaluated by this judge model "
+            "(e.g. 'llama3.2:3b-instruct-q4_0'). "
+            "Useful when comparing multiple judge configurations."
+        )
     )
     args = parser.parse_args()
 
@@ -47,12 +55,13 @@ def main():
     analyzer = ResultAnalyzer(
         results_path=args.results,
         output_dir=args.output,
+        judge_model=args.judge,
     )
 
     analyzer.run_all()
 
     if args.model:
-        logger.info(f"Generating additional outputs for model: {args.model}")
+        logger.info(f"Generating additional heatmap for target model: {args.model}")
         analyzer.plot_heatmap(model=args.model)
 
     print(f"\nAnalysis complete. Outputs saved to: {args.output}")

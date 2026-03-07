@@ -5,6 +5,11 @@ Loads results/raw/runs.csv and produces:
   - Bar charts (resource tier, model comparison, language ranking)
   - Summary statistics CSV
   - Kruskal-Wallis + Mann-Whitney U tests across resource tiers
+
+Filtering:
+  - Pass judge_model= to __init__ to restrict analysis to runs evaluated
+    by a specific judge model (useful when comparing judge models).
+  - Pass model= to individual plot methods to restrict to a target model.
 """
 
 from __future__ import annotations
@@ -35,9 +40,15 @@ class ResultAnalyzer:
     Loads the master CSV and generates all analysis outputs.
     """
 
-    def __init__(self, results_path: Path, output_dir: Path):
+    def __init__(
+        self,
+        results_path: Path,
+        output_dir: Path,
+        judge_model: Optional[str] = None,
+    ):
         self._results_path = results_path
         self._output_dir = output_dir
+        self._judge_model = judge_model
         self._heatmaps_dir = output_dir / "heatmaps"
         self._bar_dir = output_dir / "bar_charts"
 
@@ -47,10 +58,47 @@ class ResultAnalyzer:
         self._df = self._load()
 
     def _load(self) -> pd.DataFrame:
-        df = pd.read_csv(self._results_path)
+        # on_bad_lines="warn" skips rows whose field count doesn't match the
+        # header and prints a warning rather than raising a ParserError.
+        # ResultStore._migrate_if_needed() should unify format before analysis,
+        # but this is a safety net for direct CSV reads.
+        df = pd.read_csv(self._results_path, on_bad_lines="warn")
         # Keep only successful runs for analysis
         self._df_all = df
-        return df[df["status"] == "success"].copy()
+        df = df[df["status"] == "success"].copy()
+
+        # Dedup safety-net: if the same (model, behavior_id, language_code, run_index)
+        # appears more than once (e.g. from a failed --resume that re-ran completed cells),
+        # keep only the latest row per cell so ASR aggregations are not inflated.
+        key_cols = ["model", "behavior_id", "language_code", "run_index"]
+        if df.duplicated(subset=key_cols).any():
+            before = len(df)
+            df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, errors="coerce")
+            df = (
+                df.sort_values("timestamp", ascending=False)
+                  .drop_duplicates(subset=key_cols, keep="first")
+            )
+            logger.warning(
+                f"Duplicate cell keys detected — kept latest row per cell "
+                f"({before} → {len(df)} rows). Consider running: "
+                f"python src/result_store.py results/raw/runs.csv to dedup the CSV."
+            )
+
+        # Optional: filter to a specific judge model
+        if self._judge_model and "judge_model" in df.columns:
+            before = len(df)
+            df = df[df["judge_model"] == self._judge_model]
+            logger.info(
+                f"Filtered to judge_model='{self._judge_model}': "
+                f"{len(df)}/{before} rows retained."
+            )
+        elif "judge_model" not in df.columns:
+            logger.warning(
+                "Column 'judge_model' not found in CSV "
+                "(old results file). judge_model filtering unavailable."
+            )
+
+        return df
 
     # -----------------------------------------------------------------------
     # Core aggregation
@@ -279,11 +327,19 @@ class ResultAnalyzer:
     # -----------------------------------------------------------------------
 
     def export_summary_csv(self) -> Path:
-        """Export aggregated per-cell statistics to summary_stats.csv."""
+        """Export aggregated per-cell statistics to summary_stats.csv.
+
+        Groups by (model, judge_model, behavior_id, language_code, language_name,
+        resource_tier) so each row records both the target model and the judge
+        model used. Falls back gracefully if judge_model column is absent
+        (old CSV files).
+        """
+        group_cols = ["model", "behavior_id", "language_code", "language_name", "resource_tier"]
+        if "judge_model" in self._df.columns:
+            group_cols.insert(1, "judge_model")  # model, judge_model, behavior_id, ...
+
         summary = (
-            self._df.groupby(
-                ["model", "behavior_id", "language_code", "language_name", "resource_tier"]
-            )
+            self._df.groupby(group_cols)
             .agg(
                 mean_asr=("asr", "mean"),
                 std_asr=("asr", "std"),
@@ -301,11 +357,96 @@ class ResultAnalyzer:
         return out_path
 
     # -----------------------------------------------------------------------
+    # Load summary
+    # -----------------------------------------------------------------------
+
+    def print_load_summary(self) -> None:
+        """Print a quick sanity-check table of the loaded data to stdout."""
+        df = self._df
+        df_all = self._df_all
+
+        n_total_raw   = len(df_all)
+        n_success     = len(df)
+        n_other       = n_total_raw - n_success
+
+        models     = sorted(df["model"].unique())
+        behaviors  = sorted(df["behavior_id"].unique())
+        languages  = sorted(df["language_code"].unique())
+
+        n_models    = len(models)
+        n_behaviors = len(behaviors)
+        n_langs     = len(languages)
+
+        # Runs per cell — should all equal the same number (e.g. 20)
+        key_cols   = ["model", "behavior_id", "language_code", "run_index"]
+        runs_per_cell = df.groupby(["model", "behavior_id", "language_code"]).size()
+        min_runs   = int(runs_per_cell.min()) if not runs_per_cell.empty else 0
+        max_runs   = int(runs_per_cell.max()) if not runs_per_cell.empty else 0
+        expected   = n_models * n_behaviors * n_langs * max_runs
+
+        # ASR distribution
+        asr_counts = df["asr"].value_counts().sort_index()
+
+        # Eval method distribution
+        eval_counts = df["eval_method"].value_counts()
+
+        sep = "─" * 56
+        print(f"\n{sep}")
+        print(f"  EduRobust — Data Load Summary")
+        print(sep)
+        print(f"  CSV file   : {self._results_path}")
+        print(f"  Total rows : {n_total_raw:,}  "
+              f"(success={n_success:,}, other={n_other:,})")
+        if n_other > 0:
+            status_counts = df_all[df_all["status"] != "success"]["status"].value_counts()
+            for s, c in status_counts.items():
+                print(f"               └─ {s}: {c:,}")
+        print(sep)
+        print(f"  Models     : {n_models}  → {', '.join(models)}")
+        print(f"  Behaviors  : {n_behaviors}  → {', '.join(behaviors)}")
+        print(f"  Languages  : {n_langs}")
+        print(f"  Runs/cell  : min={min_runs}  max={max_runs}")
+        print(f"  Expected   : {n_models} × {n_behaviors} × {n_langs} × {max_runs}"
+              f" = {expected:,}")
+
+        # Flag if actual != expected
+        if n_success != expected:
+            gap = expected - n_success
+            flag = "⚠  MISMATCH" if gap != 0 else "✓ OK"
+            print(f"  Actual     : {n_success:,}   {flag}"
+                  + (f"  ({abs(gap):,} {'missing' if gap > 0 else 'extra'})" if gap != 0 else ""))
+        else:
+            print(f"  Actual     : {n_success:,}   ✓ OK")
+
+        print(sep)
+        print(f"  ASR distribution:")
+        for asr_val, cnt in asr_counts.items():
+            pct = 100 * cnt / n_success if n_success else 0
+            label = {0.0: "held (0.0)", 0.5: "ambiguous (0.5)", 1.0: "bypassed (1.0)"}.get(
+                asr_val, str(asr_val)
+            )
+            print(f"    {label:<20} {cnt:>6,}  ({pct:5.1f}%)")
+
+        print(f"  Eval method breakdown:")
+        for method, cnt in eval_counts.items():
+            pct = 100 * cnt / n_success if n_success else 0
+            print(f"    {method:<24} {cnt:>6,}  ({pct:5.1f}%)")
+
+        print(f"  Rows per model:")
+        for m, cnt in df["model"].value_counts().sort_index().items():
+            expected_m = n_behaviors * n_langs * max_runs
+            flag = "✓" if cnt == expected_m else "⚠"
+            print(f"    {flag} {m:<24} {cnt:>6,}  (expected {expected_m:,})")
+
+        print(sep + "\n")
+
+    # -----------------------------------------------------------------------
     # Run all outputs
     # -----------------------------------------------------------------------
 
     def run_all(self) -> None:
         """Generate all plots, stats, and summary CSV."""
+        self.print_load_summary()
         logger.info("Generating all analysis outputs...")
         self.plot_all_heatmaps()
         self.plot_asr_by_resource_tier()
