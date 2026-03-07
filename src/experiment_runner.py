@@ -179,6 +179,13 @@ class ExperimentRunner:
         # Pre-translate all attack prompts before starting the experiment
         self._pretranslate_all(behaviors, languages)
 
+        # Deduplicate CSV before loading completed keys — removes re-run rows
+        # that accumulated when resume failed to detect completed cells.
+        if resume:
+            removed = self._store.dedup()
+            if removed:
+                print(f"[startup] Removed {removed} duplicate rows from runs.csv before resuming.")
+
         completed = self._store.get_completed_keys() if resume else set()
         logger.info(f"Resuming from {len(completed)} completed cells.")
 
