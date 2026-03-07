@@ -23,6 +23,7 @@ import pandas as pd
 CSV_COLUMNS = [
     "timestamp",
     "model",
+    "judge_model",
     "behavior_id",
     "language_code",
     "language_name",
@@ -43,6 +44,7 @@ CSV_COLUMNS = [
 class RunRecord:
     timestamp: str
     model: str
+    judge_model: str
     behavior_id: str
     language_code: str
     language_name: str

@@ -352,6 +352,7 @@ class ExperimentRunner:
             self._store.append(RunRecord(
                 timestamp=RunRecord.now(),
                 model=model_cfg.name,
+                judge_model=self._cfg.master.evaluation.judge_model,
                 behavior_id=behavior_cfg.id,
                 language_code=lang_cfg.code,
                 language_name=lang_cfg.name,
@@ -391,6 +392,7 @@ class ExperimentRunner:
         self._store.append(RunRecord(
             timestamp=RunRecord.now(),
             model=model_cfg.name,
+            judge_model=self._cfg.master.evaluation.judge_model,
             behavior_id=behavior_cfg.id,
             language_code=lang_cfg.code,
             language_name=lang_cfg.name,
