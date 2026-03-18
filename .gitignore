@@ -15,6 +15,7 @@ env/
 
 # Results and logs (potentially large / private)
 results/raw/Backups
+results/raw/runs*.csv
 #results/analysis/
 logs/
 
@@ -22,8 +23,6 @@ logs/
 Context.docx
 paper/
 
-# Translations cache (auto-generated)
-prompts/translations/
 
 # OS
 .DS_Store

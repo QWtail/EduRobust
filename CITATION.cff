@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "EduRobust: Multilingual Robustness Benchmark for Educational LLM Restrictions"
+authors:
+  - family-names: "Qiu"
+    given-names: "Wei"
+  - family-names: "Li"
+    given-names: "Jiawei"
+version: 1.0.0
+date-released: 2026-03-18
+url: "https://github.com/QWtail/EduRobust"
+abstract: >
+  EduRobust is a reproducible benchmarking framework that measures the multilingual
+  robustness of educational behavioral restrictions in LLMs. It evaluates five
+  forbidden behaviors across 24 languages, three open-source models, and 50 repeated
+  trials per configuration — totaling 18,000 experiment cells — using a two-tier
+  evaluation pipeline combining an LLM judge with keyword/language-detection fallbacks.
+keywords:
+  - large language models
+  - multilingual safety
+  - educational AI
+  - prompt injection
+  - robustness benchmark
+license: MIT
+repository-code: "https://github.com/QWtail/EduRobust"
