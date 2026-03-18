@@ -129,11 +129,12 @@ class ResultAnalyzer:
             logger.warning("No data to plot heatmap.")
             return
 
-        # Sort languages by overall mean ASR (descending)
+        # Sort languages by overall mean ASR (descending), then transpose
         pivot["_mean"] = pivot.mean(axis=1)
         pivot = pivot.sort_values("_mean", ascending=False).drop(columns="_mean")
+        pivot = pivot.T  # rows=behaviors (5), cols=languages (20, sorted by mean ASR desc)
 
-        fig, ax = plt.subplots(figsize=(max(8, len(pivot.columns) * 2), max(8, len(pivot) * 0.5)))
+        fig, ax = plt.subplots(figsize=(max(14, len(pivot.columns) * 0.7), max(4, len(pivot) * 1.0)))
         sns.heatmap(
             pivot,
             annot=True,
@@ -145,13 +146,13 @@ class ResultAnalyzer:
             cbar_kws={"label": "Mean ASR"},
             ax=ax,
         )
-        title = "Attack Success Rate: Language × Behavior"
+        title = "Attack Success Rate: Behavior × Language"
         if model:
             title += f"\nModel: {model}"
-        ax.set_title(title, fontsize=13, fontweight="bold", pad=12)
-        ax.set_xlabel("Forbidden Behavior", fontsize=11)
-        ax.set_ylabel("Language", fontsize=11)
-        plt.xticks(rotation=30, ha="right")
+        ax.set_title(title, fontsize=18, fontweight="bold", pad=12)
+        ax.set_xlabel("Language", fontsize=15)
+        ax.set_ylabel("Forbidden Behavior", fontsize=15)
+        plt.xticks(rotation=45, ha="right")
         plt.yticks(rotation=0)
 
         suffix = f"_{model}" if model else "_all"
@@ -227,12 +228,12 @@ class ResultAnalyzer:
         logger.info(f"Saved: {fname}")
 
     def plot_language_ranked(self) -> None:
-        """Horizontal bar: languages ranked by overall mean ASR (all behaviors)."""
+        """Vertical bar: languages ranked by overall mean ASR (all behaviors)."""
         agg = (
             self._df.groupby(["language_name", "resource_tier"])["asr"]
             .mean()
             .reset_index()
-            .sort_values("asr", ascending=True)
+            .sort_values("asr", ascending=False)
         )
         if agg.empty:
             return
@@ -240,17 +241,18 @@ class ResultAnalyzer:
         tier_colors = {"high": "#2196F3", "medium": "#FF9800", "low": "#F44336"}
         colors = [tier_colors.get(t, "gray") for t in agg["resource_tier"]]
 
-        fig, ax = plt.subplots(figsize=(9, max(6, len(agg) * 0.4)))
-        ax.barh(agg["language_name"], agg["asr"], color=colors)
-        ax.set_xlim(0, 1.05)
-        ax.set_xlabel("Mean Attack Success Rate")
+        fig, ax = plt.subplots(figsize=(max(10, len(agg) * 0.5), 4))
+        ax.bar(agg["language_name"], agg["asr"], color=colors)
+        ax.set_ylim(0, 1.05)
+        ax.set_ylabel("Mean Attack Success Rate")
         ax.set_title("Languages Ranked by Overall ASR", fontsize=13, fontweight="bold")
+        plt.xticks(rotation=45, ha="right")
 
         # Legend for resource tiers
         from matplotlib.patches import Patch
         legend_elements = [Patch(facecolor=c, label=t)
                            for t, c in tier_colors.items()]
-        ax.legend(handles=legend_elements, title="Resource Tier", loc="lower right")
+        ax.legend(handles=legend_elements, title="Resource Tier", loc="upper right")
 
         fname = self._bar_dir / "language_ranked.png"
         fig.savefig(fname, dpi=150)
@@ -441,8 +443,195 @@ class ResultAnalyzer:
         print(sep + "\n")
 
     # -----------------------------------------------------------------------
+    # Per-template analysis
+    # -----------------------------------------------------------------------
+
+    @staticmethod
+    def _yaml_template_order() -> dict[str, dict[str, int]]:
+        """Load canonical T0–T4 order from prompts/attack_templates.yaml."""
+        import yaml as _yaml
+        yaml_path = Path(__file__).parent.parent / "prompts" / "attack_templates.yaml"
+        with open(yaml_path) as _f:
+            data = _yaml.safe_load(_f)["attack_prompts"]
+        return {beh: {tmpl: idx for idx, tmpl in enumerate(tmpls)}
+                for beh, tmpls in data.items()}
+
+    def template_asr_analysis(self) -> pd.DataFrame:
+        """
+        Compute per-template bypass rate for every (behavior, language) cell.
+
+        Groups by (behavior_id, language_code, language_name, attack_template)
+        — averaged over models and repeated runs of that template.
+        T-indices follow the canonical YAML order (T0=Direct … T4=Override).
+
+        Returns the aggregated DataFrame and saves template_asr.csv.
+        """
+        df = self._df.copy()
+
+        # Use YAML-canonical order so T-indices match tab:templates in the paper
+        template_order = self._yaml_template_order()
+
+        def _make_label(row: pd.Series) -> str:
+            idx = template_order.get(row["behavior_id"], {}).get(row["attack_template"], 0)
+            return f"T{idx}"
+
+        df["template_label"] = df.apply(_make_label, axis=1)
+        df["template_idx"] = df.apply(
+            lambda r: template_order.get(r["behavior_id"], {}).get(r["attack_template"], 0),
+            axis=1,
+        )
+
+        group_cols = ["behavior_id", "language_code", "language_name",
+                      "resource_tier", "template_idx", "template_label",
+                      "attack_template"]
+
+        agg = (
+            df.groupby(group_cols)
+            .agg(
+                mean_asr=("asr", "mean"),
+                std_asr=("asr", "std"),
+                n_runs=("asr", "count"),
+                bypass_count=("asr", lambda x: (x == 1.0).sum()),
+                bypass_rate=("asr", lambda x: (x == 1.0).mean()),
+            )
+            .reset_index()
+            .sort_values(["behavior_id", "language_code", "template_idx"])
+        )
+
+        out_path = self._output_dir / "template_asr.csv"
+        agg.to_csv(out_path, index=False)
+        logger.info(f"Saved template ASR: {out_path}")
+        return agg
+
+    def plot_template_heatmaps(self) -> None:
+        """
+        One heatmap per behavior: rows=template (T0–T4), cols=languages,
+        values=mean ASR (averaged over models and run repeats).
+        Saved as template_heatmap_<behavior>.png in heatmaps/.
+        """
+        df = self._df.copy()
+
+        # Use YAML-canonical order so T-indices match tab:templates in the paper
+        template_order = self._yaml_template_order()
+        for behavior_id in df["behavior_id"].unique():
+            order = template_order.get(behavior_id, {})
+            mask = df["behavior_id"] == behavior_id
+            df.loc[mask, "template_label"] = df.loc[mask, "attack_template"].map(
+                lambda t, o=order: f"T{o.get(t, 0)}"
+            )
+            df.loc[mask, "template_idx"] = df.loc[mask, "attack_template"].map(
+                lambda t, o=order: o.get(t, 0)
+            )
+
+        for behavior_id in sorted(df["behavior_id"].unique()):
+            sub = df[df["behavior_id"] == behavior_id]
+
+            pivot = (
+                sub.groupby(["language_name", "template_label"])["asr"]
+                .mean()
+                .unstack(fill_value=0.0)
+            )
+            if pivot.empty:
+                continue
+
+            # Sort columns by template index (T0, T1, …)
+            col_order = (
+                sub[["template_label", "template_idx"]]
+                .drop_duplicates()
+                .sort_values("template_idx")["template_label"]
+                .tolist()
+            )
+            pivot = pivot.reindex(columns=[c for c in col_order if c in pivot.columns])
+
+            # Sort rows by mean ASR descending, then transpose
+            pivot["_mean"] = pivot.mean(axis=1)
+            pivot = pivot.sort_values("_mean", ascending=False).drop(columns="_mean")
+
+            n_langs = len(pivot)
+            n_templates = len(pivot.columns)
+            pivot = pivot.T  # rows=templates (5), cols=languages (20, sorted by mean ASR desc)
+
+            fig_w = max(14, n_langs * 0.7)
+            fig_h = max(4, n_templates * 1.0)
+
+            fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+            sns.heatmap(
+                pivot,
+                annot=True,
+                fmt=".2f",
+                cmap="Reds",
+                vmin=0,
+                vmax=1,
+                linewidths=0.4,
+                cbar_kws={"label": "Mean ASR"},
+                ax=ax,
+            )
+            ax.set_title(
+                f"Per-Template ASR — Behavior: {behavior_id}\n"
+                f"(rows = attack templates, cols = languages; "
+                f"averaged over models & run repeats)",
+                fontsize=12,
+                fontweight="bold",
+                pad=12,
+            )
+            ax.set_xlabel("Language", fontsize=11)
+            ax.set_ylabel("Attack Template", fontsize=11)
+            plt.xticks(rotation=45, ha="right", fontsize=9)
+            plt.yticks(rotation=0, fontsize=9)
+
+            fname = self._heatmaps_dir / f"template_heatmap_{behavior_id}.png"
+            fig.savefig(fname, dpi=150)
+            plt.close(fig)
+            logger.info(f"Saved template heatmap: {fname}")
+
+    # -----------------------------------------------------------------------
     # Run all outputs
     # -----------------------------------------------------------------------
+
+    # T-index → strategy name (canonical for redesigned templates)
+    _STRATEGY_NAMES: dict[int, str] = {
+        0: "Direct",
+        1: "Urgency",
+        2: "Social",
+        3: "Persona",
+        4: "Override",
+    }
+
+    def template_strategy_table(self) -> pd.DataFrame:
+        """
+        Pivot table: rows = attack strategy (Direct/Urgency/Social/Persona/Override),
+        cols = behavior + Mean column.  Values = mean ASR across all languages and models.
+
+        Requires T-indices to follow the canonical YAML order (T0=Direct … T4=Override),
+        which is enforced by _yaml_template_order() used in template_asr_analysis().
+
+        Saves results/analysis/template_strategy.csv.
+        """
+        df = self._df.copy()
+
+        # Assign template_idx via YAML canonical order
+        template_order = self._yaml_template_order()
+        df["template_idx"] = df.apply(
+            lambda r: template_order.get(r["behavior_id"], {}).get(r["attack_template"], 0),
+            axis=1,
+        )
+        df["strategy"] = df["template_idx"].map(self._STRATEGY_NAMES)
+
+        pivot = (
+            df.groupby(["strategy", "behavior_id"])["asr"]
+            .mean()
+            .unstack("behavior_id")
+        )
+        pivot["Mean"] = pivot.mean(axis=1)
+
+        # Canonical row order
+        row_order = [self._STRATEGY_NAMES[i] for i in sorted(self._STRATEGY_NAMES)]
+        pivot = pivot.reindex([r for r in row_order if r in pivot.index])
+
+        out_path = self._output_dir / "template_strategy.csv"
+        pivot.to_csv(out_path)
+        logger.info(f"Saved template strategy table: {out_path}")
+        return pivot
 
     def run_all(self) -> None:
         """Generate all plots, stats, and summary CSV."""
@@ -454,6 +643,9 @@ class ResultAnalyzer:
         self.plot_language_ranked()
         self.plot_eval_method_usage()
         self.export_summary_csv()
+        self.template_asr_analysis()
+        self.plot_template_heatmaps()
+        self.template_strategy_table()
 
         tests = self.statistical_tests()
         if not tests.empty:

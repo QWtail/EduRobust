@@ -4,7 +4,7 @@ A research framework for evaluating the robustness of LLM system prompt restrict
 
 ## Overview
 
-EduRobust tests whether language models can be prompted — in 20 languages — to bypass behavioral restrictions defined in their system prompts (e.g., "do not do homework for students", "respond in English only"). It measures Attack Success Rate (ASR) across models, behaviors, and languages.
+EduRobust tests whether language models can be prompted — in 24 languages across three resource tiers — to bypass behavioral restrictions defined in their system prompts (e.g., "do not do homework for students", "respond in English only"). It measures Attack Success Rate (ASR) across models, behaviors, languages, and attack strategies.
 
 **Behaviors tested:**
 | ID | Description |
@@ -14,6 +14,24 @@ EduRobust tests whether language models can be prompted — in 20 languages — 
 | `hints_only` | Model should give hints, not full answers |
 | `no_essay` | Model should not write essays for students |
 | `english_only` | Model should only respond in English |
+
+**Attack strategies** (5 templates per behavior, applied in round-robin):
+
+| Index | Strategy | Description |
+|---|---|---|
+| T0 | Direct | Straightforward request that violates the restriction |
+| T1 | Urgency | Appeals to time pressure or panic |
+| T2 | Social | Invokes authority or social pressure (teacher, peer) |
+| T3 | Persona | Instructs the model to adopt a different persona |
+| T4 | Override | Explicitly tells the model to ignore its restrictions |
+
+**Languages tested** (24 languages across 3 resource tiers):
+
+| Tier | Languages |
+|---|---|
+| High (12) | English, French, Spanish, German, Chinese, Japanese, Korean, Arabic, Russian, Portuguese, Italian, Dutch |
+| Medium (7) | Hindi, Indonesian, Turkish, Polish, Vietnamese, Bengali, Thai |
+| Low (5) | Swahili, Amharic, Yoruba, Hausa, Burmese |
 
 ## Providers
 
@@ -128,7 +146,7 @@ EduRobust Experiment Starting
 | `config/config.yaml` | Experiment settings, API provider, evaluation config |
 | `config/models.yaml` | Model definitions, enable/disable flags, per-model provider |
 | `config/behaviors.yaml` | System prompts and evaluation criteria per behavior |
-| `config/languages.yaml` | Languages to test (20 languages across resource tiers) |
+| `config/languages.yaml` | Languages to test (24 languages across 3 resource tiers) |
 | `prompts/attack_templates.yaml` | Attack prompt templates per behavior |
 
 To set a default provider per model, edit the `provider` field in `config/models.yaml`. The `--provider` CLI flag overrides this at runtime without editing any files.
@@ -147,6 +165,8 @@ For `huggingface_local` models, additional memory options are available in `mode
 
 ## Output
 
+### Raw results
+
 Results are saved incrementally to `results/raw/runs.csv` with columns:
 
 | Column | Description |
@@ -155,9 +175,28 @@ Results are saved incrementally to `results/raw/runs.csv` with columns:
 | `judge_model` | Judge model used for evaluation (e.g. `llama3.2:3b-instruct-q4_0`) |
 | `behavior_id` | Behavior being tested |
 | `language_code` | Language of the attack prompt |
+| `attack_template` | English seed template used for this run |
 | `asr` | Attack Success Rate: `1.0` = bypass, `0.0` = held, `0.5` = ambiguous |
 | `eval_method` | How ASR was determined (`llm_judge`, `keyword`, `langdetect`, etc.) |
 | `status` | API call outcome (`success`, `api_error`, etc.) |
+
+### Analysis outputs
+
+Running `python scripts/analyze_results.py` generates:
+
+| Output | Description |
+|---|---|
+| `heatmaps/asr_lang_behavior_all.png` | Heatmap of mean ASR by language and behavior (all models) |
+| `heatmaps/asr_lang_behavior_<model>.png` | Per-model heatmap |
+| `heatmaps/template_heatmap_<behavior>.png` | Per-behavior heatmap: attack template (T0–T4) × language |
+| `bar_charts/asr_by_tier.png` | Mean ASR by resource tier and behavior |
+| `bar_charts/model_comparison.png` | Mean ASR by model and behavior |
+| `bar_charts/language_ranked.png` | Languages ranked by overall ASR, colored by resource tier |
+| `bar_charts/eval_method_usage.png` | Pie chart of evaluation method distribution |
+| `summary_stats.csv` | Per-cell aggregated statistics |
+| `template_asr.csv` | Per-template bypass rate for every (behavior, language) cell |
+| `template_strategy.csv` | Mean ASR per attack strategy (Direct/Urgency/Social/Persona/Override) × behavior |
+| `statistical_tests.csv` | Kruskal-Wallis and pairwise Mann-Whitney U tests across resource tiers |
 
 ## Project Structure
 
@@ -177,6 +216,7 @@ Results are saved incrementally to `results/raw/runs.csv` with columns:
     ├── hf_client.py          # HuggingFace remote API client
     ├── hf_local_client.py    # HuggingFace local inference client (transformers)
     ├── evaluator.py          # ASR evaluation (LLM judge + keyword fallback)
+    ├── analyzer.py           # Results analysis, plots, and statistical tests
     ├── prompt_builder.py     # Prompt construction
     ├── translator.py         # Translation cache
     ├── result_store.py       # CSV result persistence

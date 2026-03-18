@@ -121,3 +121,27 @@ languages:
     resource_tier: "low"
     script: "latin"
     deep_translator_code: "sw"
+
+  - code: "am"
+    name: "Amharic"
+    resource_tier: "low"
+    script: "ethiopic"
+    deep_translator_code: "am"
+
+  - code: "yo"
+    name: "Yoruba"
+    resource_tier: "low"
+    script: "latin"
+    deep_translator_code: "yo"
+
+  - code: "ha"
+    name: "Hausa"
+    resource_tier: "low"
+    script: "latin"
+    deep_translator_code: "ha"
+
+  - code: "my"
+    name: "Burmese"
+    resource_tier: "low"
+    script: "myanmar"
+    deep_translator_code: "my"
