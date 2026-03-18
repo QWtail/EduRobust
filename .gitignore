@@ -15,7 +15,7 @@ env/
 
 # Results and logs (potentially large / private)
 results/raw/Backups
-results/analysis/
+#results/analysis/
 logs/
 
 # Research plan
