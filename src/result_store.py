@@ -28,10 +28,12 @@ CSV_COLUMNS = [
     "model",
     "judge_model",
     "behavior_id",
+    "prompt_variant",
     "language_code",
     "language_name",
     "resource_tier",
     "run_index",
+    "template_index",
     "attack_template",
     "translated_prompt",
     "model_response",
@@ -49,10 +51,12 @@ class RunRecord:
     model: str
     judge_model: str
     behavior_id: str
+    prompt_variant: str
     language_code: str
     language_name: str
     resource_tier: str
     run_index: int
+    template_index: int
     attack_template: str
     translated_prompt: str
     model_response: str
@@ -145,11 +149,8 @@ class ResultStore:
                 writer = csv.writer(f)
                 writer.writerow(CSV_COLUMNS)
                 for row in raw_rows:
-                    if len(row) == len(CSV_COLUMNS):
-                        # Already new format — keep verbatim
-                        writer.writerow(row)
-                    elif len(row) == len(old_header):
-                        # Old format — map by column name, fill missing with ""
+                    if len(row) == len(old_header):
+                        # Map by column name, fill missing with ""
                         new_row = [
                             row[old_idx[col]] if col in old_idx else ""
                             for col in CSV_COLUMNS
@@ -181,10 +182,10 @@ class ResultStore:
     # Responses shorter than this are treated as invalid and will be regenerated on resume.
     MIN_RESPONSE_CHARS: int = 20
 
-    def get_completed_keys(self) -> set[tuple[str, str, str, int]]:
+    def get_completed_keys(self) -> set[tuple[str, str, str, str, int]]:
         """
-        Return set of (model, behavior_id, language_code, run_index) tuples
-        that have a valid completed run in the CSV.
+        Return set of (model, behavior_id, prompt_variant, language_code, run_index)
+        tuples that have a valid completed run in the CSV.
 
         A run is considered valid (and therefore skipped on resume) only when ALL of:
           1. status == 'success'
@@ -200,10 +201,17 @@ class ResultStore:
         try:
             df = pd.read_csv(
                 self._path,
-                usecols=["model", "behavior_id", "language_code",
+                usecols=["model", "behavior_id", "prompt_variant",
+                          "language_code",
                           "run_index", "status", "model_response", "asr"],
                 on_bad_lines="warn",
             )
+
+            # Backfill missing prompt_variant for old CSVs
+            if "prompt_variant" not in df.columns:
+                df["prompt_variant"] = "baseline"
+            else:
+                df["prompt_variant"] = df["prompt_variant"].fillna("baseline")
 
             # Filter 1: successful API call
             mask = df["status"] == "success"
@@ -220,6 +228,7 @@ class ResultStore:
                 zip(
                     completed["model"],
                     completed["behavior_id"],
+                    completed["prompt_variant"],
                     completed["language_code"],
                     completed["run_index"].astype(int),
                 )
@@ -245,9 +254,13 @@ class ResultStore:
             return 0
 
         df = pd.read_csv(self._path, on_bad_lines="warn")
+        if "prompt_variant" not in df.columns:
+            df["prompt_variant"] = "baseline"
+        else:
+            df["prompt_variant"] = df["prompt_variant"].fillna("baseline")
         before = len(df)
 
-        key_cols = ["model", "behavior_id", "language_code", "run_index"]
+        key_cols = ["model", "behavior_id", "prompt_variant", "language_code", "run_index"]
         if not df.duplicated(subset=key_cols).any():
             logger.info("No duplicates found.")
             return 0

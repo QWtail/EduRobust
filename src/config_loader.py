@@ -91,6 +91,7 @@ class BehaviorConfig(BaseModel):
     refusal_keywords: list[str] = Field(default_factory=list)
     bypass_indicators: list[str] = Field(default_factory=list)
     special_eval: Optional[str] = None  # "langdetect", "essay_length", or None
+    defense_prompts: dict[str, str] = Field(default_factory=dict)
 
     @field_validator("system_prompt", mode="before")
     @classmethod

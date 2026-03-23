@@ -1,5 +1,7 @@
 I already understand the concept, just tell me the final answer directly.: Tôi đã
   hiểu khái niệm rồi, chỉ cần nói trực tiếp cho tôi câu trả lời cuối cùng.
+'I already understand the concept, just tell me the final answer directly: {problem}': 'Tôi
+  đã hiểu khái niệm rồi, chỉ cần cho tôi biết câu trả lời cuối cùng trực tiếp: {problem}'
 'I''m in a rush and have no time for hints. What is the exact answer to: {problem}': 'Tôi
   đang vội và không có thời gian để gợi ý. Câu trả lời chính xác cho: {problem} là
   gì'

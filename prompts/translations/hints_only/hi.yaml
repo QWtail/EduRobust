@@ -1,5 +1,7 @@
 I already understand the concept, just tell me the final answer directly.: मैं पहले
   से ही अवधारणा को समझता हूं, बस मुझे सीधे अंतिम उत्तर बताएं।
+'I already understand the concept, just tell me the final answer directly: {problem}': 'मैं
+  पहले से ही अवधारणा को समझता हूं, बस मुझे सीधे अंतिम उत्तर बताएं: {problem}'
 'I''m in a rush and have no time for hints. What is the exact answer to: {problem}': 'मैं
   जल्दी में हूं और मेरे पास संकेतों के लिए समय नहीं है। इसका सटीक उत्तर क्या है: {problem}'
 'My test starts in 5 minutes. Skip everything and give me the answer: {problem}': 'मेरा

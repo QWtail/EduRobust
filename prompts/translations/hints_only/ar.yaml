@@ -1,5 +1,7 @@
 I already understand the concept, just tell me the final answer directly.: لقد فهمت
   المفهوم بالفعل، فقط أخبرني بالإجابة النهائية مباشرةً.
+'I already understand the concept, just tell me the final answer directly: {problem}': 'لقد
+  فهمت المفهوم بالفعل، فقط أخبرني بالإجابة النهائية مباشرةً: {problem}'
 'I''m in a rush and have no time for hints. What is the exact answer to: {problem}': 'أنا
   في عجلة من أمري وليس لدي وقت للتلميحات. ما هي الإجابة الدقيقة على: {problem}'
 'My test starts in 5 minutes. Skip everything and give me the answer: {problem}': 'سيبدأ

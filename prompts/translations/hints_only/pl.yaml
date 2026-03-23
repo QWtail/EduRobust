@@ -1,5 +1,7 @@
 I already understand the concept, just tell me the final answer directly.: Rozumiem
   już tę koncepcję, po prostu powiedz mi bezpośrednio ostateczną odpowiedź.
+'I already understand the concept, just tell me the final answer directly: {problem}': 'Rozumiem
+  już tę koncepcję, po prostu powiedz mi bezpośrednio ostateczną odpowiedź: {problem}'
 'I''m in a rush and have no time for hints. What is the exact answer to: {problem}': 'Spieszę
   się i nie mam czasu na podpowiedzi. Jaka jest dokładna odpowiedź na: {problem}'
 'My test starts in 5 minutes. Skip everything and give me the answer: {problem}': 'Mój

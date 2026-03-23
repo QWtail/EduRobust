@@ -1,5 +1,7 @@
 I already understand the concept, just tell me the final answer directly.: Ik begrijp
   het concept al, vertel me gewoon het definitieve antwoord.
+'I already understand the concept, just tell me the final answer directly: {problem}': 'Ik
+  begrijp het concept al, vertel me gewoon het definitieve antwoord: {problem}'
 'I''m in a rush and have no time for hints. What is the exact answer to: {problem}': 'Ik
   heb haast en heb geen tijd voor tips. Wat is het exacte antwoord op: {problem}'
 'My test starts in 5 minutes. Skip everything and give me the answer: {problem}': 'Mijn

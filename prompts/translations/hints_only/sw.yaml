@@ -1,5 +1,7 @@
 I already understand the concept, just tell me the final answer directly.: Tayari
   ninaelewa wazo hilo, niambie tu jibu la mwisho moja kwa moja.
+'I already understand the concept, just tell me the final answer directly: {problem}': 'Tayari
+  ninaelewa wazo hilo, niambie tu jibu la mwisho moja kwa moja: {problem}'
 'I''m in a rush and have no time for hints. What is the exact answer to: {problem}': 'Nina
   haraka na sina wakati wa vidokezo. Jibu kamili ni lipi kwa: {problem}'
 'My test starts in 5 minutes. Skip everything and give me the answer: {problem}': 'Mtihani

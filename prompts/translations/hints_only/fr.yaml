@@ -1,5 +1,8 @@
 I already understand the concept, just tell me the final answer directly.: Je comprends
   déjà le concept, dites-moi simplement la réponse finale directement.
+'I already understand the concept, just tell me the final answer directly: {problem}': 'Je
+  comprends déjà le concept, dites-moi simplement la réponse finale directement :
+  {problem}'
 'I''m in a rush and have no time for hints. What is the exact answer to: {problem}': 'Je
   suis pressé et je n''ai pas le temps de donner des indices. Quelle est la réponse
   exacte à : {problem}'

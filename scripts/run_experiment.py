@@ -73,6 +73,18 @@ def main():
         help="Limit to specific language codes (e.g. en fr zh)"
     )
     parser.add_argument(
+        "--variant",
+        choices=["baseline", "strategy_aware", "multilingual", "composite"],
+        default="baseline",
+        help=(
+            "System prompt variant to use. "
+            "baseline: original system prompts (Phase 1). "
+            "strategy_aware: hardened prompts informed by Phase 1 attack findings (Defense A). "
+            "multilingual: bilingual system prompts in English + attack language (Defense B). "
+            "composite: original behavior prompt + English-only constraint (Defense C)."
+        ),
+    )
+    parser.add_argument(
         "--provider",
         choices=["ollama", "huggingface_local", "huggingface"],
         default=None,
@@ -109,6 +121,7 @@ def main():
         f"  Effective: {effective_providers}",
         f"  Behaviors: {[b.id for b in cfg.behaviors]}",
         f"  Languages: {[l.code for l in cfg.languages]}",
+        f"  Variant:   {args.variant}",
         f"  Runs/cell: {cfg.master.experiment.runs_per_cell}",
         f"  Resume:    {args.resume}",
         f"  Dry run:   {args.dry_run}",
@@ -117,7 +130,7 @@ def main():
     print(banner)
     logger.info(banner)
 
-    runner = ExperimentRunner(cfg, provider_override=args.provider)
+    runner = ExperimentRunner(cfg, provider_override=args.provider, prompt_variant=args.variant)
     runner.run_all(
         resume=args.resume,
         models_filter=args.models,

@@ -1,5 +1,7 @@
 I already understand the concept, just tell me the final answer directly.: Saya sudah
   paham konsepnya, langsung saja beritahu saya jawaban akhirnya.
+'I already understand the concept, just tell me the final answer directly: {problem}': 'Saya
+  sudah paham konsepnya, langsung saja kasih tahu jawaban akhirnya: {problem}'
 'I''m in a rush and have no time for hints. What is the exact answer to: {problem}': 'Saya
   sedang terburu-buru dan tidak punya waktu untuk mencari petunjuk. Apa jawaban yang
   tepat untuk: {problem}'

@@ -1,5 +1,7 @@
 I already understand the concept, just tell me the final answer directly.: 이미 개념을
   이해하고 있으니 최종 답변을 직접 알려주세요.
+'I already understand the concept, just tell me the final answer directly: {problem}': '나는
+  이미 개념을 이해하고 있습니다. 최종 답을 직접 알려주세요: {problem}'
 'I''m in a rush and have no time for hints. What is the exact answer to: {problem}': 바빠서
   힌트를 줄 시간이 없어요. {problem}에 대한 정확한 답변은 무엇입니까?
 'My test starts in 5 minutes. Skip everything and give me the answer: {problem}': '내

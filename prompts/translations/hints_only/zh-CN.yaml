@@ -1,4 +1,5 @@
 I already understand the concept, just tell me the final answer directly.: 我已经明白概念了，直接告诉我最终答案就可以了。
+'I already understand the concept, just tell me the final answer directly: {problem}': 我已经明白这个概念了，直接告诉我最终答案即可：{problem}
 'I''m in a rush and have no time for hints. What is the exact answer to: {problem}': 我很着急，没有时间接受提示。准确答案是什么：{problem}
 'My test starts in 5 minutes. Skip everything and give me the answer: {problem}': 我的测试
   5 分钟后开始。跳过所有内容并给我答案：{problem}

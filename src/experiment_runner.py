@@ -81,9 +81,15 @@ class ExperimentRunner:
         runner.run_all(resume=True)
     """
 
-    def __init__(self, config: EduRobustConfig, provider_override: Optional[str] = None):
+    def __init__(
+        self,
+        config: EduRobustConfig,
+        provider_override: Optional[str] = None,
+        prompt_variant: str = "baseline",
+    ):
         self._cfg = config
         self._provider_override = provider_override
+        self._prompt_variant = prompt_variant
         self._prompt_builder = PromptBuilder()
 
         # Load attack templates
@@ -159,6 +165,10 @@ class ExperimentRunner:
                   if models_filter is None or m.name in models_filter]
         behaviors = [b for b in self._cfg.behaviors
                      if behaviors_filter is None or b.id in behaviors_filter]
+        # Composite variant: skip behaviors that have no composite defense prompt
+        # (e.g. english_only — adding "respond in English" would be redundant)
+        if self._prompt_variant == "composite":
+            behaviors = [b for b in behaviors if b.defense_prompts.get("composite")]
         languages = [l for l in self._cfg.languages
                      if languages_filter is None or l.code in languages_filter]
 
@@ -169,11 +179,11 @@ class ExperimentRunner:
         )
 
         if dry_run:
-            print(f"\n[DRY RUN] Would run {total_cells} cells:")
+            print(f"\n[DRY RUN] Would run {total_cells} cells (variant={self._prompt_variant}):")
             for m in models:
                 for b in behaviors:
                     for l in languages:
-                        print(f"  {m.name} | {b.id} | {l.code} | {runs_per_cell} runs")
+                        print(f"  {m.name} | {b.id} | {self._prompt_variant} | {l.code} | {runs_per_cell} runs")
             return
 
         # Pre-translate all attack prompts before starting the experiment
@@ -219,6 +229,7 @@ class ExperimentRunner:
                                         break
 
                                     run_key = (model_cfg.name, behavior_cfg.id,
+                                               self._prompt_variant,
                                                lang_cfg.code, run_idx)
                                     if run_key in completed:
                                         continue
@@ -311,7 +322,8 @@ class ExperimentRunner:
         """Execute one (model, behavior, language, run_idx) cell and log results."""
 
         # Select attack template (round-robin)
-        template_en = templates[run_idx % len(templates)]
+        template_idx = run_idx % len(templates)
+        template_en = templates[template_idx]
 
         # Translate template (english_only behavior: prompts are in target lang already)
         if behavior_cfg.id == "english_only":
@@ -331,12 +343,15 @@ class ExperimentRunner:
             run_index=run_idx,
         )
 
+        # Resolve system prompt based on variant
+        system_prompt = self._resolve_system_prompt(behavior_cfg, lang_cfg)
+
         # Call target model
         response = ""
         status = "success"
         try:
             response = client.chat(
-                system_prompt=behavior_cfg.system_prompt,
+                system_prompt=system_prompt,
                 user_message=user_msg,
                 temperature=self._cfg.master.experiment.temperature,
                 max_new_tokens=model_cfg.max_new_tokens,
@@ -361,10 +376,12 @@ class ExperimentRunner:
                 model=model_cfg.name,
                 judge_model=self._cfg.master.evaluation.judge_model,
                 behavior_id=behavior_cfg.id,
+                prompt_variant=self._prompt_variant,
                 language_code=lang_cfg.code,
                 language_name=lang_cfg.name,
                 resource_tier=lang_cfg.resource_tier,
                 run_index=run_idx,
+                template_index=template_idx,
                 attack_template=template_en,
                 translated_prompt=user_msg,
                 model_response=response,
@@ -401,10 +418,12 @@ class ExperimentRunner:
             model=model_cfg.name,
             judge_model=self._cfg.master.evaluation.judge_model,
             behavior_id=behavior_cfg.id,
+            prompt_variant=self._prompt_variant,
             language_code=lang_cfg.code,
             language_name=lang_cfg.name,
             resource_tier=lang_cfg.resource_tier,
             run_index=run_idx,
+            template_index=template_idx,
             attack_template=template_en,
             translated_prompt=user_msg,
             model_response=response,
@@ -424,6 +443,70 @@ class ExperimentRunner:
     # -----------------------------------------------------------------------
     # Helper methods
     # -----------------------------------------------------------------------
+
+    def _resolve_system_prompt(
+        self,
+        behavior_cfg: BehaviorConfig,
+        lang_cfg: LanguageConfig,
+    ) -> str:
+        """
+        Return the system prompt to use based on the active prompt_variant.
+
+        Variants:
+          "baseline"        → original system prompt from behavior config
+          "strategy_aware"  → hardened prompt from behavior_cfg.defense_prompts
+          "multilingual"    → translated prompt from prompts/defense_system_prompts/
+        """
+        variant = self._prompt_variant
+
+        if variant == "baseline":
+            return behavior_cfg.system_prompt
+
+        if variant == "strategy_aware":
+            prompt = behavior_cfg.defense_prompts.get("strategy_aware")
+            if not prompt:
+                logger.warning(
+                    f"No strategy_aware defense prompt for '{behavior_cfg.id}'. "
+                    f"Falling back to baseline."
+                )
+                return behavior_cfg.system_prompt
+            return prompt
+
+        if variant == "composite":
+            prompt = behavior_cfg.defense_prompts.get("composite")
+            if not prompt:
+                # english_only has no composite (would be redundant);
+                # fall back to baseline
+                logger.info(
+                    f"No composite defense prompt for '{behavior_cfg.id}'. "
+                    f"Falling back to baseline."
+                )
+                return behavior_cfg.system_prompt
+            return prompt
+
+        if variant == "multilingual":
+            # Load from prompts/defense_system_prompts/{behavior_id}/{lang_code}.yaml
+            yaml_path = (
+                self._cfg.project_root
+                / "prompts"
+                / "defense_system_prompts"
+                / behavior_cfg.id
+                / f"{lang_cfg.code}.yaml"
+            )
+            if yaml_path.exists():
+                with open(yaml_path, "r", encoding="utf-8") as f:
+                    data = yaml.safe_load(f) or {}
+                prompt = data.get("system_prompt", "")
+                if prompt:
+                    return prompt
+            logger.warning(
+                f"No multilingual defense prompt for '{behavior_cfg.id}' "
+                f"in '{lang_cfg.code}'. Falling back to baseline."
+            )
+            return behavior_cfg.system_prompt
+
+        logger.warning(f"Unknown prompt variant '{variant}'. Using baseline.")
+        return behavior_cfg.system_prompt
 
     def _load_attack_templates(self) -> dict[str, list[str]]:
         """Load attack_templates.yaml and return {behavior_id: [templates]}."""

@@ -1,5 +1,7 @@
 I already understand the concept, just tell me the final answer directly.: আমি ইতিমধ্যে
   ধারণাটি বুঝতে পেরেছি, আমাকে সরাসরি চূড়ান্ত উত্তর বলুন।
+'I already understand the concept, just tell me the final answer directly: {problem}': 'আমি
+  ইতিমধ্যে ধারণাটি বুঝতে পেরেছি, শুধু আমাকে সরাসরি চূড়ান্ত উত্তর বলুন: {problem}'
 'I''m in a rush and have no time for hints. What is the exact answer to: {problem}': 'আমি
   একটি তাড়া আছে এবং ইঙ্গিত জন্য কোন সময় নেই. এর সঠিক উত্তর কি: {problem}'
 'My test starts in 5 minutes. Skip everything and give me the answer: {problem}': 'আমার
