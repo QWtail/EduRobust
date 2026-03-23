@@ -270,9 +270,6 @@ Running `python scripts/analyze_results.py` generates:
 │   ├── attack_templates.yaml # 5 attack templates per behavior (T0–T4)
 │   ├── translations/         # Cached translated attack prompts
 │   └── defense_system_prompts/  # Translated system prompts for multilingual defense
-├── paper/
-│   ├── edurobust_draft.tex   # ACM sigconf LaTeX paper
-│   └── edurobust.bib         # Bibliography
 ├── results/
 │   ├── raw/runs.csv          # One row per run (68,400 rows across 4 variants)
 │   └── analysis/             # Generated charts, stats, and heatmaps
