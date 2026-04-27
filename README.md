@@ -252,10 +252,26 @@ Running `python scripts/analyze_results.py` generates:
 | `bar_charts/model_comparison.png` | Mean ASR by model and behavior |
 | `bar_charts/language_ranked.png` | Languages ranked by overall ASR, colored by resource tier |
 | `bar_charts/eval_method_usage.png` | Pie chart of evaluation method distribution |
+| `bar_charts/behavior_asr_boxplot.png` | Cell-level ASR distribution per forbidden behavior (boxplot) |
+| `bar_charts/defense_tier_gradient.png` | Mean ASR per resource tier across defense variants |
+| `bar_charts/defense_gap_reduction.png` | Cross-language ASR gap (max − min) per behavior and defense |
+| `bar_charts/defense_comparison.png` | Baseline vs. defense ASR comparison per behavior |
 | `summary_stats.csv` | Per-cell aggregated statistics |
 | `template_asr.csv` | Per-template bypass rate for every (behavior, language) cell |
 | `template_strategy.csv` | Mean ASR per attack strategy (Direct/Urgency/Social/Persona/Override) × behavior |
 | `statistical_tests.csv` | Kruskal-Wallis and pairwise Mann-Whitney U tests across resource tiers |
+| `model_statistical_tests.csv` | Kruskal-Wallis and pairwise Mann-Whitney U tests across models |
+| `defense_statistical_tests.csv` | Wilcoxon signed-rank tests: baseline vs. each defense per behavior |
+
+### Human validation outputs
+
+Running the validation scripts generates:
+
+| Output | Description |
+|---|---|
+| `results/validation_sample.csv` | Stratified random sample (200 runs, 40 per behavior) for human labeling |
+| `results/analysis/human_validation.csv` | Human labels with automated scores for agreement analysis |
+| `results/analysis/agreement_summary.csv` | Cohen's κ (weighted) per behavior and overall |
 
 ## Project Structure
 
@@ -275,11 +291,16 @@ Running `python scripts/analyze_results.py` generates:
 │   └── analysis/             # Generated charts, stats, and heatmaps
 ├── logs/                     # Run logs
 ├── scripts/
-│   ├── run_experiment.py     # Main CLI entry point
-│   ├── analyze_results.py    # Results analysis and visualization
-│   ├── run_all_defenses.sh   # Run all defense variants sequentially
-│   ├── translate_prompts.py  # Pre-translate attack prompts
-│   └── translate_system_prompts.py  # Translate system prompts for Defense B
+│   ├── run_experiment.py           # Main CLI entry point
+│   ├── analyze_results.py          # Results analysis and visualization
+│   ├── run_all_defenses.sh         # Run all defense variants sequentially
+│   ├── translate_prompts.py        # Pre-translate attack prompts
+│   ├── translate_system_prompts.py # Translate system prompts for Defense B
+│   ├── generate_validation_sample.py  # Sample 200 runs for human labeling
+│   ├── translate_validation_sample.py # Translate non-English responses for human review
+│   ├── apply_claude_labels.py      # Apply human/Claude labels to validation sample
+│   ├── compute_agreement.py        # Compute Cohen's κ between human and automated labels
+│   └── rescore_runs.py             # Re-evaluate runs.csv with updated evaluator
 └── src/
     ├── experiment_runner.py  # Main orchestration loop (supports 4 variants)
     ├── ollama_client.py      # Ollama local inference client

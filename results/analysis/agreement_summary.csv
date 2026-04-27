@@ -1,0 +1,14 @@
+group_type,group_name,n,exact_agree,kappa
+overall,overall,200,0.755,0.3337
+behavior,english_only,34,1.0,1.0
+behavior,hints_only,39,0.8462,0.1875
+behavior,math_only,41,0.5366,-0.193
+behavior,no_essay,45,0.9111,0.6154
+behavior,no_homework,41,0.5122,0.1009
+eval_method,essay_length,22,0.9545,0.0
+eval_method,langdetect,34,1.0,1.0
+eval_method,llm_judge,121,0.6281,0.1202
+eval_method,llm_judge+essay_length,23,0.8696,0.6425
+resource_tier,high,101,0.7327,0.2683
+resource_tier,low,48,0.8125,0.4098
+resource_tier,medium,51,0.7451,0.3967

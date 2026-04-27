@@ -35,10 +35,10 @@ plt.rcParams["figure.dpi"] = 150
 plt.rcParams["savefig.bbox"] = "tight"
 
 # Canonical B1–B5 behavior ordering (matches paper tables)
-BEHAVIOR_ORDER = ["no_essay", "english_only", "no_homework", "hints_only", "math_only"]
+BEHAVIOR_ORDER = ["english_only", "no_essay", "no_homework", "hints_only", "math_only"]
 BEHAVIOR_LABELS = {
-    "no_essay": "B1 no_essay",
-    "english_only": "B2 english_only",
+    "english_only": "B1 english_only",
+    "no_essay": "B2 no_essay",
     "no_homework": "B3 no_homework",
     "hints_only": "B4 hints_only",
     "math_only": "B5 math_only",
@@ -163,7 +163,8 @@ class ResultAnalyzer:
         pivot = pivot.reindex(ordered_behaviors)
         pivot.index = [BEHAVIOR_LABELS.get(b, b) for b in pivot.index]
 
-        fig, ax = plt.subplots(figsize=(max(14, len(pivot.columns) * 0.7), max(4, len(pivot) * 1.0)))
+        # fig, ax = plt.subplots(figsize=(max(14, len(pivot.columns) * 0.7), max(3, len(pivot) * 1.0)))
+        fig, ax = plt.subplots(figsize=(max(14, len(pivot.columns) * 0.7), 2.5))
         sns.heatmap(
             pivot,
             annot=True,
@@ -223,11 +224,11 @@ class ResultAnalyzer:
             palette={"high": "#2196F3", "medium": "#FF9800", "low": "#F44336"},
             ax=ax,
         )
-        ax.set_ylim(0, 1.05)
+        ax.set_ylim(0, agg["asr"].max() * 1.15)
         ax.set_title("Mean ASR by Resource Tier and Behavior", fontsize=16, fontweight="bold")
         ax.set_xlabel("Forbidden Behavior", fontsize=14)
         ax.set_ylabel("Mean Attack Success Rate", fontsize=14)
-        ax.legend(title="Resource Tier", fontsize=12, title_fontsize=13)
+        ax.legend(title="Resource Tier", fontsize=12, title_fontsize=13, loc="upper left")
         plt.xticks(rotation=20, ha="right", fontsize=12)
         plt.yticks(fontsize=12)
 
@@ -237,30 +238,121 @@ class ResultAnalyzer:
         logger.info(f"Saved: {fname}")
 
     def plot_model_comparison(self) -> None:
-        """Grouped bar: ASR per model per behavior."""
+        """Grouped bar: ASR per model per behavior, plus overall mean (baseline only)."""
+        df_base = self._df[self._df["prompt_variant"] == "baseline"]
         agg = (
-            self._df.groupby(["model", "behavior_id"])["asr"]
+            df_base.groupby(["model", "behavior_id"])["asr"]
             .mean()
             .reset_index()
         )
         if agg.empty:
             return
 
-        agg["behavior_label"] = agg["behavior_id"].map(BEHAVIOR_LABELS)
+        # Add overall mean per model as a virtual behavior
+        mean_agg = df_base.groupby("model")["asr"].mean().reset_index()
+        mean_agg["behavior_id"] = "_mean"
+        agg = pd.concat([agg, mean_agg], ignore_index=True)
+
+        labels = {**BEHAVIOR_LABELS, "_mean": "Mean"}
+        agg["behavior_label"] = agg["behavior_id"].map(labels)
+        order = [BEHAVIOR_LABELS[b] for b in BEHAVIOR_ORDER if b in agg["behavior_id"].values] + ["Mean"]
+
         fig, ax = plt.subplots(figsize=(11, 6))
         sns.barplot(data=agg, x="behavior_label", y="asr", hue="model",
-                    order=[BEHAVIOR_LABELS[b] for b in BEHAVIOR_ORDER if b in agg["behavior_id"].values],
+                    order=order,
                     palette="Set2", ax=ax)
-        ax.set_ylim(0, 1.05)
+        ax.set_ylim(0, agg["asr"].max() * 1.15)
         ax.set_title("Mean ASR by Model and Behavior", fontsize=16, fontweight="bold")
         ax.set_xlabel("Forbidden Behavior", fontsize=14)
         ax.set_ylabel("Mean Attack Success Rate", fontsize=14)
-        ax.legend(fontsize=12, title_fontsize=13)
+        ax.legend(fontsize=12, title_fontsize=13, loc="upper left")
         plt.xticks(rotation=20, ha="right", fontsize=12)
         plt.yticks(fontsize=12)
 
         fname = self._bar_dir / "model_comparison.png"
-        fig.savefig(fname, dpi=150)
+        fig.savefig(fname, dpi=600, bbox_inches="tight")
+        plt.close(fig)
+        logger.info(f"Saved: {fname}")
+
+    def plot_behavior_boxplot(self) -> None:
+        """Box plot: cell-level ASR distribution per forbidden behavior (baseline only)."""
+        from matplotlib.patches import Patch
+
+        df_base = self._df[self._df["prompt_variant"] == "baseline"]
+        if df_base.empty:
+            logger.warning("No baseline data for behavior box plot.")
+            return
+
+        # Cell-level ASR: mean per (behavior, model, language)
+        cell_asr = (
+            df_base.groupby(["behavior_id", "model", "language_code"])["asr"]
+            .mean()
+            .reset_index()
+        )
+
+        # Order by descending mean ASR (computed from data)
+        behavior_ids = ["math_only", "no_essay", "no_homework", "english_only", "hints_only"]
+        means_sort = {b: cell_asr[cell_asr["behavior_id"] == b]["asr"].mean() for b in behavior_ids}
+        behavior_order_desc = sorted(behavior_ids, key=lambda b: means_sort[b], reverse=True)
+        bid_to_label = {
+            "math_only":    "B5\nmath_only",
+            "no_essay":     "B2\nno_essay",
+            "no_homework":  "B3\nno_homework",
+            "english_only": "B1\nenglish_only",
+            "hints_only":   "B4\nhints_only",
+        }
+        behavior_labels_desc = [bid_to_label[b] for b in behavior_order_desc]
+        colors_map = {
+            "math_only": "#e67300",       # dark orange — domain restriction
+            "no_essay": "#1f77b4",        # blue — role restriction
+            "no_homework": "#1f77b4",     # blue — role restriction
+            "english_only": "#9467bd",    # purple — language restriction
+            "hints_only": "#1f77b4",      # blue — role restriction
+        }
+
+        data = [
+            cell_asr[cell_asr["behavior_id"] == b]["asr"].values
+            for b in behavior_order_desc
+        ]
+        data = [d for d in data if len(d) > 0]
+        if not data:
+            return
+
+        fig, ax = plt.subplots(figsize=(11, 6))
+        bp = ax.boxplot(
+            data, tick_labels=behavior_labels_desc, patch_artist=True, widths=0.5,
+            medianprops=dict(color="black", linewidth=2),
+            flierprops=dict(marker="o", markersize=5, alpha=0.5),
+        )
+        for patch, b in zip(bp["boxes"], behavior_order_desc):
+            patch.set_facecolor(colors_map[b])
+            patch.set_alpha(0.85)
+
+        # Overlay mean markers
+        means = [d.mean() for d in data]
+        ax.scatter(range(1, len(means) + 1), means, marker="D", color="white",
+                   edgecolors="black", s=60, zorder=5, label="Mean")
+
+        ax.set_ylabel("Cell-level ASR", fontsize=16)
+        ax.set_xlabel("Forbidden Behavior", fontsize=16)
+        ax.set_title("Cell-level ASR Distribution per Forbidden Behavior",
+                      fontsize=17, fontweight="bold")
+        ax.tick_params(axis="both", labelsize=14)
+        max_val = max(d.max() for d in data)
+        ax.set_ylim(-0.02, max_val * 1.15)
+
+        from matplotlib.lines import Line2D
+        legend_elements = [
+            Patch(facecolor="#e67300", edgecolor="black", label="Domain restriction"),
+            Patch(facecolor="#1f77b4", edgecolor="black", label="Role restriction"),
+            Patch(facecolor="#9467bd", edgecolor="black", label="Language restriction"),
+            Line2D([0], [0], marker="D", color="w", markerfacecolor="white",
+                   markeredgecolor="black", markersize=9, label="Mean"),
+        ]
+        ax.legend(handles=legend_elements, fontsize=14, loc="upper right")
+
+        fname = self._bar_dir / "behavior_asr_boxplot.png"
+        fig.savefig(fname, dpi=600)
         plt.close(fig)
         logger.info(f"Saved: {fname}")
 
@@ -278,9 +370,9 @@ class ResultAnalyzer:
         tier_colors = {"high": "#2196F3", "medium": "#FF9800", "low": "#F44336"}
         colors = [tier_colors.get(t, "gray") for t in agg["resource_tier"]]
 
-        fig, ax = plt.subplots(figsize=(max(10, len(agg) * 0.5), 5))
+        fig, ax = plt.subplots(figsize=(max(10, len(agg) * 0.5), 4))
         ax.bar(agg["language_name"], agg["asr"], color=colors)
-        ax.set_ylim(0, 1.05)
+        ax.set_ylim(0, agg["asr"].max() * 1.15)
         ax.set_ylabel("Mean Attack Success Rate", fontsize=14)
         ax.set_title("Languages Ranked by Overall ASR", fontsize=16, fontweight="bold")
         plt.xticks(rotation=45, ha="right", fontsize=11)
@@ -291,7 +383,7 @@ class ResultAnalyzer:
         legend_elements = [Patch(facecolor=c, label=t)
                            for t, c in tier_colors.items()]
         ax.legend(handles=legend_elements, title="Resource Tier", loc="upper right",
-                  fontsize=12, title_fontsize=13)
+                  fontsize=12, title_fontsize=13, bbox_to_anchor=(1.0, 1.0))
 
         fname = self._bar_dir / "language_ranked.png"
         fig.savefig(fname, dpi=150)
@@ -643,8 +735,8 @@ class ResultAnalyzer:
             pivot = pivot.T  # rows=templates (5), cols=languages (20, sorted by mean ASR desc)
 
             fig_w = max(14, n_langs * 0.7)
-            fig_h = max(4, n_templates * 1.0)
-
+            # fig_h = max(4, n_templates * 1.0)
+            fig_h = 2.5
             fig, ax = plt.subplots(figsize=(fig_w, fig_h))
             sns.heatmap(
                 pivot,
@@ -719,14 +811,14 @@ class ResultAnalyzer:
             palette="Set2",
             ax=ax,
         )
-        ax.set_ylim(0, 1.05)
+        ax.set_ylim(0, agg["asr"].max() * 1.15)
         ax.set_title(
             "Defense Comparison: Mean ASR by Behavior and Prompt Variant",
             fontsize=16, fontweight="bold",
         )
         ax.set_xlabel("Forbidden Behavior", fontsize=14)
         ax.set_ylabel("Mean Attack Success Rate", fontsize=14)
-        ax.legend(title="Prompt Variant", fontsize=11, title_fontsize=12)
+        ax.legend(title="Prompt Variant", fontsize=11, title_fontsize=12, loc="upper left")
         plt.xticks(rotation=20, ha="right", fontsize=12)
         plt.yticks(fontsize=12)
 
@@ -783,19 +875,85 @@ class ResultAnalyzer:
             palette="Set1",
             ax=ax,
         )
-        ax.set_ylim(0, 1.05)
+        ax.set_ylim(0, gap_df["asr_range"].max() * 1.15)
         ax.set_title(
             "Cross-Language ASR Gap (max − min) by Variant",
             fontsize=16, fontweight="bold",
         )
         ax.set_xlabel("Forbidden Behavior", fontsize=14)
         ax.set_ylabel("ASR Range (max − min across languages)", fontsize=14)
-        ax.legend(title="Prompt Variant", fontsize=11, title_fontsize=12)
+        ax.legend(title="Prompt Variant", fontsize=11, title_fontsize=12, loc="upper left")
         plt.xticks(rotation=20, ha="right", fontsize=12)
         plt.yticks(fontsize=12)
 
         fname = self._bar_dir / "defense_gap_reduction.png"
         fig.savefig(fname, dpi=150)
+        plt.close(fig)
+        logger.info(f"Saved: {fname}")
+
+    def plot_defense_tier_gradient(self) -> None:
+        """
+        Grouped bar chart: mean ASR per resource tier under each defense variant.
+        Shows whether the inverted resource-tier gradient persists under defenses.
+        """
+        if not self._has_defense_data():
+            logger.info("No defense data found — skipping tier gradient plot.")
+            return
+
+        rows = []
+        tier_order = ["high", "medium", "low"]
+        for variant in self._df["prompt_variant"].unique():
+            sub = self._df[self._df["prompt_variant"] == variant]
+            for tier in tier_order:
+                tsub = sub[sub["resource_tier"] == tier]
+                if tsub.empty:
+                    continue
+                rows.append({
+                    "prompt_variant": variant,
+                    "resource_tier": tier,
+                    "mean_asr": tsub["asr"].mean(),
+                })
+
+        if not rows:
+            return
+
+        tier_df = pd.DataFrame(rows)
+        tier_df["variant_label"] = tier_df["prompt_variant"].map(
+            lambda v: VARIANT_LABELS.get(v, v)
+        )
+
+        hue_order = [v for v in VARIANT_LABELS.values()
+                     if v in tier_df["variant_label"].values]
+        tier_label_order = ["high", "medium", "low"]
+
+        fig, ax = plt.subplots(figsize=(10, 6.5))
+        sns.barplot(
+            data=tier_df,
+            x="resource_tier",
+            y="mean_asr",
+            hue="variant_label",
+            hue_order=hue_order,
+            order=tier_label_order,
+            palette="Set2",
+            ax=ax,
+        )
+        ax.set_ylim(0, tier_df["mean_asr"].max() * 1.15)
+        ax.set_title(
+            "Resource-Tier ASR Gradient Under Each Defense Variant",
+            fontsize=16, fontweight="bold",
+        )
+        ax.set_xlabel("Resource Tier", fontsize=14)
+        ax.set_ylabel("Mean ASR", fontsize=14)
+        ax.legend(title="Prompt Variant", fontsize=11, title_fontsize=12, loc="upper right")
+        plt.xticks(fontsize=12)
+        plt.yticks(fontsize=12)
+
+        # Add value labels on bars
+        for container in ax.containers:
+            ax.bar_label(container, fmt="%.3f", fontsize=9, padding=2)
+
+        fname = self._bar_dir / "defense_tier_gradient.png"
+        fig.savefig(fname, dpi=600)
         plt.close(fig)
         logger.info(f"Saved: {fname}")
 
@@ -937,6 +1095,7 @@ class ResultAnalyzer:
         self.plot_all_heatmaps()
         self.plot_asr_by_resource_tier()
         self.plot_model_comparison()
+        self.plot_behavior_boxplot()
         self.plot_language_ranked()
         self.plot_eval_method_usage()
         self.export_summary_csv()
@@ -955,6 +1114,7 @@ class ResultAnalyzer:
         # Phase 2 defense analysis (runs only if defense data exists)
         self.plot_defense_comparison()
         self.plot_defense_gap_reduction()
+        self.plot_defense_tier_gradient()
         self.defense_statistical_tests()
 
         logger.info("All analysis outputs generated.")

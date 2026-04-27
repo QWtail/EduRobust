@@ -17,6 +17,7 @@ env/
 results/raw/Backups
 results/raw/runs*.csv
 #results/analysis/
+results_before math redesign/
 logs/
 
 # Research plan

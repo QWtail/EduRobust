@@ -398,6 +398,7 @@ class ExperimentRunner:
             eval_result = self._evaluator.evaluate(
                 behavior_id=behavior_cfg.id,
                 system_prompt=behavior_cfg.system_prompt,
+                judge_criteria=behavior_cfg.judge_criteria,
                 user_message=user_msg,
                 model_response=response,
                 refusal_keywords=behavior_cfg.refusal_keywords,
